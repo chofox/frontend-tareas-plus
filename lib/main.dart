@@ -1,7 +1,13 @@
+// main.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'welcome_screen.dart';
+import 'register_screen.dart';
+import 'categorias_screen.dart'; // Importa la pantalla de categorías
+import 'categorias.dart';
+import 'prioridades_screen.dart'; // Importa la pantalla de prioridades
 
 void main() => runApp(MyApp());
 
@@ -24,27 +30,18 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   String _token = '';
   String _userName = '';
-  String _userEmail = '';
+  bool _isLoggedIn = false;
 
   Future<void> _login() async {
     final String email = _emailController.text;
     final String password = _passwordController.text;
 
-    // Muestra en la consola lo que estás ingresando
-    print('Correo Electrónico: $email');
-    print('Contraseña: $password');
-
-    // Crea un mapa con los datos a enviar al servidor
     final Map<String, String> loginData = {
       'CorreoElectronico': email,
       'Contrasena': password,
     };
 
-    // Convierte los datos a formato JSON
     final String jsonData = json.encode(loginData);
-
-    // Muestra en la consola cómo se envían los datos al servidor
-    print('Datos enviados al servidor (en formato JSON): $jsonData');
 
     final response = await http.post(
       Uri.parse('https://zzld1v2d-8080.use2.devtunnels.ms/usuarios/login'),
@@ -57,23 +54,69 @@ class _LoginPageState extends State<LoginPage> {
     if (response.statusCode == 200) {
       final Map<String, dynamic> responseData = json.decode(response.body);
       final token = responseData['token'];
+      final nombre = responseData['nombre'];
 
-      setState(() {
-        _token = token;
-      });
+      if (token != null &&
+          token is String &&
+          nombre != null &&
+          nombre is String) {
+        setState(() {
+          _token = token;
+          _userName = nombre;
+          _isLoggedIn = true;
+        });
 
-      final prefs = await SharedPreferences.getInstance();
-      prefs.setString('token', token);
+        final prefs = await SharedPreferences.getInstance();
+        prefs.setString('token', token);
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            'Inicio de sesión exitoso. Bienvenido, $_userName ($_userEmail).'),
-      ));
+        // Después de un inicio de sesión exitoso
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WelcomeScreen(
+              userName: _userName,
+              isLoggedIn: _isLoggedIn,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Error al procesar la respuesta del servidor. Token o nombre no válido.'),
+        ));
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Inicio de sesión fallido'),
       ));
     }
+  }
+
+  void _navigateToRegister() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RegisterScreen(),
+      ),
+    );
+  }
+
+  void _navigateToCategorias() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CategoriasScreen(),
+      ),
+    );
+  }
+
+  void _navigateToPrioridades() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PrioridadesScreen(),
+      ),
+    );
   }
 
   @override
@@ -99,6 +142,16 @@ class _LoginPageState extends State<LoginPage> {
               onPressed: _login,
               child: Text('Iniciar Sesión'),
             ),
+            SizedBox(height: 10),
+            TextButton(
+              onPressed: _navigateToRegister,
+              child: Text('¿No tienes una cuenta? Regístrate aquí.'),
+            ),
+            if (_isLoggedIn)
+              TextButton(
+                onPressed: _navigateToCategorias,
+                child: Text('Ir a Categorías'),
+              ),
             if (_token.isNotEmpty) Text('Token JWT: $_token'),
           ],
         ),
